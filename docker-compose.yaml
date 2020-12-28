@@ -1,0 +1,83 @@
+version: "3.4"
+services:
+  base-scrap-worker: &base-scrap-worker
+    build:
+      dockerfile: "./docker/scrap-worker.dockerfile"
+      context: "."
+    environment:
+      X-SCRAP-WORKER-CONFIG: "default"
+    image: "netortech/scrap-worker"
+    volumes:
+      - "./src:/app"
+    networks:
+      - "scrap-worker"
+
+  test:
+    build:
+      dockerfile: "./docker/scrap-worker-test.dockerfile"
+      context: "."
+    environment: 
+      X-SCRAP-WORKER-CONFIG: "test"
+    volumes:
+      - "./docker/scripts/lint-and-test.sh:/tmp/lint-and-test.sh"
+      - "./src:/app"
+    networks:
+      - "scrap-worker"
+
+  scrap-workers:
+    <<: *base-scrap-worker
+    scale: 5
+    entrypoint: ["python", "manage.py", "start"]
+    depends_on:
+      - kafka
+      - hello-world-simulation
+
+  hello-world-simulation:
+    <<: *base-scrap-worker
+    scale: 1
+    entrypoint: ["python", "manage.py", "simulate-hello-world-work"]
+    depends_on:
+      - kafka
+
+  kafka_ui:
+    image: "sourcelaborg/kafka-webview:2.5.0"
+    ports:
+      - "8080:8080"
+    volumes:
+      - "./datastore/kafka_ui:/app/data"
+    networks:
+      - "scrap-worker"
+
+  kafka:
+    image: "confluentinc/cp-kafka:5.1.2"
+    depends_on:
+      - zookeeper
+      - kafka_ui
+    environment:
+      - "KAFKA_BROKER_ID=0"
+      - "KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181"
+      - "KAFKA_LISTENERS=LISTENER_LOCAL://0.0.0.0:9093,PLAINTEXT://0.0.0.0:9092"
+      - "KAFKA_ADVERTISED_LISTENERS=LISTENER_LOCAL://localhost:9093,PLAINTEXT://kafka:9092"
+      - "KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=LISTENER_LOCAL:PLAINTEXT,PLAINTEXT:PLAINTEXT"
+      - "KAFKA_AUTO_CREATE_TOPICS_ENABLE=true"
+      - "KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=1"
+      - "KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS=100"
+    ports:
+      - "9093:9093"
+    networks:
+      - "scrap-worker"
+
+  zookeeper:
+    image: "confluentinc/cp-zookeeper:5.1.2"
+    environment:
+      - "ZOOKEEPER_CLIENT_PORT=2181"
+      - "ZOOKEEPER_TICK_TIME=2000"
+    networks:
+      - "scrap-worker"
+
+volumes:
+  home:
+  scrap-worker-data:
+    driver: "local"
+networks:
+  scrap-worker:

@@ -1,0 +1,13 @@
+src/scrap_worker/default_config.py
+
+datastore/*
+!/datastore/README.md
+
+**/__pycache__
+
+.DS_Store
+.mypy_cache
+.pytest_cache
+.coverage
+htmlcov
+venv

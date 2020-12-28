@@ -1,0 +1,9 @@
+# Generated from default_config.template
+
+# You can change the file but note that it is intentionally ignored by git to avoid checking in unintentional changes.
+import logging
+
+
+def set_default_config(config):
+    config.kafka_producer_broker = "kafka:9092"
+    config.log_level = logging.DEBUG
